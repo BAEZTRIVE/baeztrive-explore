@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import base64
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent / "pipeline"))
@@ -313,6 +314,54 @@ html, body,
     text-align: right;
 }}
 
+/* ── EXPLORAR STAT CARDS ── */
+.xp-card {{
+    background: {WHITE};
+    border: 1px solid {BORDER};
+    border-top: 2px solid {BLACK};
+    padding: 1rem 1.2rem 1rem;
+    height: 100%;
+}}
+.xp-card.accent {{ border-top-color: {RED}; }}
+.xp-label {{
+    font-size: 0.52rem;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: {LGRAY};
+    margin-bottom: 0.5rem;
+}}
+.xp-value {{
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: {BLACK};
+    letter-spacing: -0.5px;
+    line-height: 1;
+    font-family: 'IBM Plex Mono', monospace !important;
+}}
+.xp-sub {{
+    font-size: 0.6rem;
+    color: {LGRAY};
+    margin-top: 0.2rem;
+    letter-spacing: 1px;
+}}
+.xp-delta-up   {{ color: #16A34A; font-weight: 700; }}
+.xp-delta-down {{ color: {RED};   font-weight: 700; }}
+.xp-delta-flat {{ color: {LGRAY}; font-weight: 700; }}
+
+/* ── COUNTRY STRIP LABEL ── */
+.country-strip {{
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: {GRAY};
+    padding: 1rem 0 0.6rem;
+    border-top: 1px solid {BORDER};
+    margin-top: 0.8rem;
+}}
+.country-strip:first-of-type {{ border-top: none; margin-top: 0; padding-top: 0; }}
+
 /* ── MINI CHART CARD ── */
 .mini-card {{
     background: {WHITE};
@@ -378,6 +427,18 @@ IND_DESC = {
     "Informalidad laboral (%)": "Proporción del empleo informal sobre el empleo total",
 }
 KEY_EVENTS = {2008: "Crisis\n2008", 2020: "COVID\n2020"}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOGOS (base64 para embedding en HTML)
+# ─────────────────────────────────────────────────────────────────────────────
+_assets = Path(__file__).parent / "assets"
+
+def _b64(path: Path) -> str:
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+LOGO_ICON   = _b64(_assets / "BAEZTRIVE Logo.png")
+LOGO_LETRAS = _b64(_assets / "BAEZTRIVE Logo Letras.png")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
@@ -503,16 +564,13 @@ def make_mini_chart(serie: pd.Series, color=RED, height=90) -> go.Figure:
 # ─────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"""
-    <div style="padding:1.5rem 0 1.5rem 0;border-bottom:1px solid {BORDER};margin-bottom:1.5rem;">
-        <div style="font-size:0.5rem;letter-spacing:5px;text-transform:uppercase;
-                    color:{RED};font-weight:900;">BAEZTRIVE</div>
-        <div style="font-size:1.5rem;font-weight:900;color:{BLACK};
-                    text-transform:uppercase;letter-spacing:-0.5px;line-height:1;margin-top:0.2rem;">
-            Explore
-        </div>
-        <div style="font-size:0.5rem;letter-spacing:3px;color:{LGRAY};
-                    text-transform:uppercase;margin-top:0.3rem;">Data Studios · LATAM</div>
+    <div style="padding:1.5rem 0 0.8rem;">
+        <img src="data:image/png;base64,{LOGO_LETRAS}"
+             style="width:100%;max-width:190px;display:block;">
+        <div style="font-size:0.48rem;letter-spacing:3px;text-transform:uppercase;
+                    color:{LGRAY};margin-top:0.5rem;">Data Studios · LATAM</div>
     </div>
+    <hr style="border:none;border-top:1px solid {BORDER};margin:0 0 1.5rem;">
     """, unsafe_allow_html=True)
 
     vs_mode   = st.toggle("Vs Mode", value=False)
@@ -554,67 +612,133 @@ with t_explorar:
         st.warning("Sin datos disponibles.")
         st.stop()
 
-    # ── Asymmetric hero split ─────────────────────────────────────────────
-    col_hero, col_chart = st.columns([4, 6], gap="medium")
+    flag_str   = "  ".join(COUNTRIES[p]["flag"] for p in paises)
+    label_pais = " vs ".join(paises)
+    yr_latest  = max(int(s.dropna().sort_index().index[-1]) for s in dfs.values() if len(s.dropna()) > 0)
 
-    with col_hero:
-        for i, (pais, serie) in enumerate(dfs.items()):
-            s     = serie.dropna().sort_index()
-            val   = s.iloc[-1] if len(s) else None
-            yr    = int(s.index[-1]) if len(s) else "—"
-            flag  = COUNTRIES[pais]["flag"]
-            pct, prev_yr = get_delta(s)
+    # ── Header — mismo patrón que Perfil y Rankings ────────────────────────
+    st.markdown(f"""
+    <div style="position:relative;overflow:hidden;padding:2.5rem 0 1.5rem;
+                border-bottom:2px solid {BLACK};margin-bottom:2rem;">
 
-            if pct is not None:
-                arrow = "▲" if pct >= 0 else "▼"
-                dcls  = "hero-delta-up" if pct >= 0 else "hero-delta-down"
-                d_html = f'<div class="{dcls}">{arrow} {abs(pct):.1f}% vs {prev_yr}</div>'
-            else:
-                d_html = '<div class="hero-delta-flat">— sin dato previo</div>'
+        <img src="data:image/png;base64,{LOGO_ICON}"
+             style="position:absolute;top:1.5rem;right:0;width:72px;
+                    opacity:0.9;border-radius:10px;">
 
-            short_ind = indicador.split("(")[0].strip().upper()
+        <div style="position:absolute;bottom:-0.5rem;left:-0.3rem;
+                    font-size:9rem;font-weight:900;
+                    color:rgba(249,43,43,0.05);
+                    text-transform:uppercase;letter-spacing:-4px;line-height:1;
+                    font-family:'IBM Plex Mono',monospace;white-space:nowrap;
+                    pointer-events:none;">
+            {indicador.upper().split("(")[0].strip()}
+        </div>
+
+        <div style="font-size:0.55rem;font-weight:900;letter-spacing:4px;
+                    text-transform:uppercase;color:{RED};margin-bottom:0.4rem;">
+            {flag_str} · {label_pais}
+        </div>
+        <div style="font-size:3rem;font-weight:900;color:{BLACK};
+                    text-transform:uppercase;letter-spacing:-1px;line-height:1;">
+            {indicador}
+        </div>
+        <div style="font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;
+                    color:{GRAY};margin-top:0.4rem;">
+            {IND_SOURCE[indicador]} · Serie histórica 2000–{yr_latest}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Stat strip — 4 cards por país ─────────────────────────────────────
+    for i, (pais, serie) in enumerate(dfs.items()):
+        s    = serie.dropna().sort_index()
+        flag = COUNTRIES[pais]["flag"]
+        val  = s.iloc[-1] if len(s) else None
+        yr   = int(s.index[-1]) if len(s) else "—"
+        pct, prev_yr = get_delta(s)
+        mn, mx = s.min(), s.max()
+        mn_yr  = int(s.idxmin()) if len(s) else "—"
+        mx_yr  = int(s.idxmax()) if len(s) else "—"
+
+        if pct is not None:
+            arrow     = "▲" if pct >= 0 else "▼"
+            d_cls     = "xp-delta-up" if pct >= 0 else "xp-delta-down"
+            d_display = f'<span class="{d_cls}">{arrow} {abs(pct):.1f}%</span>'
+            d_sub     = f"vs {prev_yr}"
+        else:
+            d_display = '<span class="xp-delta-flat">—</span>'
+            d_sub     = ""
+
+        if len(dfs) > 1:
+            border_t = "none" if i == 0 else f"1px solid {BORDER}"
             st.markdown(f"""
-            <div class="hero-block" style="margin-bottom:{'0.8rem' if i < len(dfs)-1 else '0'};">
-                <div class="hero-watermark">{fmt(val, indicador) if val else ''}</div>
-                <div class="hero-kicker">{flag} {pais.upper()} · {yr}</div>
-                <div class="hero-number">{fmt(val, indicador) if val else '—'}</div>
-                <div class="hero-label">{short_ind}</div>
-                {d_html}
+            <div style="font-size:0.55rem;font-weight:900;letter-spacing:4px;
+                        text-transform:uppercase;color:{GRAY};
+                        padding:{('1.2rem' if i > 0 else '0')} 0 0.6rem;
+                        border-top:{border_t};">
+                {flag} {pais.upper()}
             </div>
             """, unsafe_allow_html=True)
 
-    with col_chart:
-        st.markdown(f"""
-        <div style="background:{WHITE};border:1px solid {BORDER};
-                    padding:1.5rem 1.5rem 1rem;">
-            <div class="sec-label">{indicador} · {" vs ".join(paises)}</div>
-        """, unsafe_allow_html=True)
-        fig = make_chart(dfs, indicador, height=340)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        st.markdown("</div>", unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4, gap="small")
+        with c1:
+            st.markdown(f"""
+            <div class="xp-card accent">
+                <div class="xp-label">Último dato · {yr}</div>
+                <div class="xp-value">{fmt(val, indicador) if val is not None else '—'}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"""
+            <div class="xp-card">
+                <div class="xp-label">Variación anual</div>
+                <div class="xp-value">{d_display}</div>
+                <div class="xp-sub">{d_sub}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c3:
+            st.markdown(f"""
+            <div class="xp-card">
+                <div class="xp-label">Mínimo · {mn_yr}</div>
+                <div class="xp-value">{fmt(mn, indicador)}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c4:
+            st.markdown(f"""
+            <div class="xp-card">
+                <div class="xp-label">Máximo · {mx_yr}</div>
+                <div class="xp-value">{fmt(mx, indicador)}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
+    # ── Chart ─────────────────────────────────────────────────────────────
+    st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">Evolución histórica</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background:{WHITE};border:1px solid {BORDER};padding:1.5rem 1.5rem 0.5rem;">', unsafe_allow_html=True)
+    fig = make_chart(dfs, indicador, height=400)
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── Data table ────────────────────────────────────────────────────────
     st.markdown("<hr class='div-line'>", unsafe_allow_html=True)
+    st.markdown('<div class="sec-label">Datos históricos</div>', unsafe_allow_html=True)
 
-    # ── Data table + download ──────────────────────────────────────────────
     combined = pd.DataFrame(dfs).sort_index(ascending=False)
     combined.index.name = "Año"
 
-    st.markdown('<div class="sec-label">Datos históricos</div>', unsafe_allow_html=True)
-
-    c_table, c_dl = st.columns([5, 1])
-    with c_dl:
+    dl_col, _ = st.columns([1, 6])
+    with dl_col:
         st.download_button(
-            "↓ CSV",
+            "↓ Descargar CSV",
             data=combined.to_csv().encode("utf-8"),
             file_name=f"baeztrive_{indicador.lower().replace(' ','_').replace('/','')}.csv",
             mime="text/csv",
             use_container_width=True,
         )
-    with c_table:
-        st.dataframe(
-            combined.style.format(lambda v: fmt(v, indicador)),
-            use_container_width=True, height=260,
-        )
+    st.dataframe(
+        combined.style.format(lambda v: fmt(v, indicador)),
+        use_container_width=True, height=260,
+    )
 
     st.markdown(f"""
     <div class="pg-footer">
