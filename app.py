@@ -75,6 +75,18 @@ html, body,
     border: 1px solid {BORDER} !important;
     border-radius: 0 !important;
     font-weight: 700 !important;
+    color: {BLACK} !important;
+}}
+[data-testid="stSelectbox"] span,
+[data-testid="stSelectbox"] p {{
+    color: {BLACK} !important;
+}}
+[data-testid="stSelectbox"] ul li {{
+    background: {WHITE} !important;
+    color: {BLACK} !important;
+}}
+[data-testid="stSelectbox"] ul li:hover {{
+    background: {PAPER} !important;
 }}
 
 /* ── TABS ── */
@@ -251,6 +263,41 @@ html, body,
     flex-shrink: 0;
 }}
 .rank-value.leader {{ color: {RED}; }}
+
+/* ── DOWNLOAD BUTTON ── */
+[data-testid="stDownloadButton"] button {{
+    background: {WHITE} !important;
+    color: {BLACK} !important;
+    border: 1px solid {BLACK} !important;
+    border-radius: 0 !important;
+    font-size: 0.55rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 3px !important;
+    text-transform: uppercase !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    padding: 0.45rem 1rem !important;
+}}
+[data-testid="stDownloadButton"] button:hover {{
+    background: {BLACK} !important;
+    color: {WHITE} !important;
+}}
+
+/* ── DATA TABLE ── */
+.data-tbl {{ width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; }}
+.data-tbl thead tr {{ border-bottom: 2px solid {BLACK}; }}
+.data-tbl thead th {{
+    font-size: 0.5rem; font-weight: 900; letter-spacing: 3px;
+    text-transform: uppercase; color: {GRAY}; padding: 0.5rem 0.8rem;
+    text-align: right;
+}}
+.data-tbl thead th:first-child {{ text-align: left; }}
+.data-tbl tbody tr {{ border-bottom: 1px solid {BORDER}; }}
+.data-tbl tbody tr:last-child {{ border-bottom: none; }}
+.data-tbl tbody td {{
+    font-size: 0.78rem; font-weight: 700; color: {BLACK};
+    padding: 0.55rem 0.8rem; text-align: right;
+}}
+.data-tbl tbody td:first-child {{ color: {GRAY}; font-size: 0.65rem; text-align: left; }}
 
 /* ── DIVIDER ── */
 .div-line {{ border: none; border-top: 1px solid {BORDER}; margin: 2rem 0; }}
@@ -487,13 +534,15 @@ def make_chart(dfs: dict, indicador: str, height=380) -> go.Figure:
         all_years.update(s.index.tolist())
         color = PALETTE_LIGHT[i % len(PALETTE_LIGHT)]
         flag  = COUNTRIES[pais]["flag"]
+        custom = [fmt(v, indicador) for v in s.values]
         fig.add_trace(go.Scatter(
             x=s.index, y=s.values,
+            customdata=custom,
             name=f"{flag} {pais}",
             mode="lines+markers",
             line=dict(color=color, width=2.5, shape="spline", smoothing=0.5),
             marker=dict(size=4, color=color),
-            hovertemplate=f"<b>{flag} {pais}</b> %{{x}}<br><b>%{{y:,.4~g}}</b><extra></extra>",
+            hovertemplate=f"<b>{flag} {pais}</b> %{{x}}<br><b>%{{customdata}}</b><extra></extra>",
         ))
     for yr, label in KEY_EVENTS.items():
         if yr in all_years:
@@ -529,17 +578,19 @@ def make_chart(dfs: dict, indicador: str, height=380) -> go.Figure:
     return fig
 
 
-def make_mini_chart(serie: pd.Series, color=RED, height=90) -> go.Figure:
+def make_mini_chart(serie: pd.Series, ind: str = "", color=RED, height=90) -> go.Figure:
     s = serie.dropna().sort_index()
     fig = go.Figure()
     r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+    custom = [fmt(v, ind) for v in s.values] if ind else list(s.values)
     fig.add_trace(go.Scatter(
         x=s.index, y=s.values,
+        customdata=custom,
         mode="lines",
         line=dict(color=color, width=2, shape="spline", smoothing=0.6),
         fill="tozeroy",
         fillcolor=f"rgba({r},{g},{b},0.06)",
-        hovertemplate="%{x}: %{y:,.3~g}<extra></extra>",
+        hovertemplate="%{x}: <b>%{customdata}</b><extra></extra>",
     ))
     fig.update_layout(
         paper_bgcolor=WHITE, plot_bgcolor=WHITE,
@@ -550,6 +601,49 @@ def make_mini_chart(serie: pd.Series, color=RED, height=90) -> go.Figure:
         showlegend=False,
     )
     return fig
+
+
+def make_yoy_chart(dfs: dict, height=280) -> go.Figure:
+    fig = go.Figure()
+    colors = PALETTE_LIGHT
+    for i, (pais, serie) in enumerate(dfs.items()):
+        s = serie.dropna().sort_index()
+        yoy = (s.pct_change() * 100).round(1).dropna()
+        color = colors[i % len(colors)]
+        fig.add_trace(go.Bar(
+            x=yoy.index, y=yoy.values,
+            name=pais,
+            marker_color=[RED if v >= 0 else BLACK for v in yoy.values] if len(dfs) == 1
+                         else color,
+            hovertemplate="<b>%{y:+.1f}%</b> vs año anterior<extra>" + pais + "</extra>",
+        ))
+    fig.update_layout(
+        paper_bgcolor=WHITE, plot_bgcolor=WHITE,
+        margin=dict(l=0, r=0, t=0, b=32), height=height,
+        barmode="group",
+        xaxis=dict(
+            showgrid=False, zeroline=False,
+            tickfont=dict(size=10, color=GRAY, family="IBM Plex Mono"),
+            linecolor=BORDER, showline=True,
+        ),
+        yaxis=dict(
+            showgrid=True, gridcolor="#F0EFE9", gridwidth=1,
+            zeroline=True, zerolinecolor=BLACK, zerolinewidth=1,
+            tickfont=dict(size=10, color=GRAY, family="IBM Plex Mono"),
+            tickformat=".1f",
+            ticksuffix="%",
+        ),
+        hovermode="x unified",
+        hoverlabel=dict(bgcolor=WHITE, bordercolor=RED, font=dict(color=BLACK, size=11)),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.02,
+            xanchor="left", x=0, bgcolor="rgba(0,0,0,0)",
+            font=dict(size=11, color=BLACK),
+        ),
+        showlegend=len(dfs) > 1,
+    )
+    return fig
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
@@ -706,26 +800,53 @@ with t_explorar:
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ── Data table ────────────────────────────────────────────────────────
+    # ── Data section — table + YoY chart ──────────────────────────────────
     st.markdown("<hr class='div-line'>", unsafe_allow_html=True)
-    st.markdown('<div class="sec-label">Datos históricos</div>', unsafe_allow_html=True)
 
     combined = pd.DataFrame(dfs).sort_index(ascending=False)
     combined.index.name = "Año"
 
-    dl_col, _ = st.columns([1, 6])
-    with dl_col:
-        st.download_button(
-            "↓ Descargar CSV",
-            data=combined.to_csv().encode("utf-8"),
-            file_name=f"baeztrive_{indicador.lower().replace(' ','_').replace('/','')}.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
-    st.dataframe(
-        combined.style.format(lambda v: fmt(v, indicador)),
-        use_container_width=True, height=260,
-    )
+    tbl_col, yoy_col = st.columns([1, 1], gap="large")
+
+    with tbl_col:
+        # header row with download button
+        lbl_c, btn_c = st.columns([3, 2])
+        with lbl_c:
+            st.markdown('<div class="sec-label">Datos históricos</div>', unsafe_allow_html=True)
+        with btn_c:
+            st.download_button(
+                "↓ CSV",
+                data=combined.to_csv().encode("utf-8"),
+                file_name=f"baeztrive_{indicador.lower().replace(' ','_').replace('/','')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        # Compact HTML table — last 12 years only
+        recent = combined.head(12)
+        th_countries = "".join(f"<th>{p}</th>" for p in recent.columns)
+        rows_html = ""
+        for yr_idx, row in recent.iterrows():
+            cells = "".join(
+                f"<td>{fmt(v, indicador) if pd.notna(v) else '—'}</td>"
+                for v in row
+            )
+            rows_html += f"<tr><td>{int(yr_idx)}</td>{cells}</tr>"
+        st.markdown(f"""
+        <div style="background:{WHITE};border:1px solid {BORDER};
+                    padding:1rem 1rem 0.5rem;overflow-x:auto;">
+            <table class="data-tbl">
+                <thead><tr><th>Año</th>{th_countries}</tr></thead>
+                <tbody>{rows_html}</tbody>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with yoy_col:
+        st.markdown('<div class="sec-label">Variación anual (%)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="background:{WHITE};border:1px solid {BORDER};padding:1rem 1rem 0;">', unsafe_allow_html=True)
+        fig_yoy = make_yoy_chart(dfs, height=280)
+        st.plotly_chart(fig_yoy, use_container_width=True, config={"displayModeBar": False}, key="yoy_chart")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class="pg-footer">
@@ -805,7 +926,7 @@ with t_perfil:
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-                fig_mini = make_mini_chart(s, color=RED if ci == 0 else BLACK, height=88)
+                fig_mini = make_mini_chart(s, ind=ind, color=RED if ci == 0 else BLACK, height=88)
                 st.plotly_chart(
                     fig_mini, use_container_width=True,
                     config={"displayModeBar": False},
