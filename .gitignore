@@ -1,0 +1,19 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Data & outputs
+data/
+visualizations/
+
+# OS
+.DS_Store
+
+# Streamlit
+.streamlit/secrets.toml
