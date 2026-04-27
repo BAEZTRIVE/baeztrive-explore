@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import base64
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent / "pipeline"))
@@ -429,16 +428,9 @@ IND_DESC = {
 KEY_EVENTS = {2008: "Crisis\n2008", 2020: "COVID\n2020"}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# LOGOS (base64 para embedding en HTML)
+# ASSETS
 # ─────────────────────────────────────────────────────────────────────────────
 _assets = Path(__file__).parent / "assets"
-
-def _b64(path: Path) -> str:
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-LOGO_ICON   = _b64(_assets / "BAEZTRIVE Logo.png")
-LOGO_LETRAS = _b64(_assets / "BAEZTRIVE Logo Letras.png")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
@@ -563,13 +555,10 @@ def make_mini_chart(serie: pd.Series, color=RED, height=90) -> go.Figure:
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
+    st.image(str(_assets / "BAEZTRIVE Logo Letras.png"), use_container_width=True)
     st.markdown(f"""
-    <div style="padding:1.5rem 0 0.8rem;">
-        <img src="data:image/png;base64,{LOGO_LETRAS}"
-             style="width:100%;max-width:190px;display:block;">
-        <div style="font-size:0.48rem;letter-spacing:3px;text-transform:uppercase;
-                    color:{LGRAY};margin-top:0.5rem;">Data Studios · LATAM</div>
-    </div>
+    <div style="font-size:0.48rem;letter-spacing:3px;text-transform:uppercase;
+                color:{LGRAY};margin-top:0.3rem;margin-bottom:0.8rem;">Data Studios · LATAM</div>
     <hr style="border:none;border-top:1px solid {BORDER};margin:0 0 1.5rem;">
     """, unsafe_allow_html=True)
 
@@ -617,37 +606,35 @@ with t_explorar:
     yr_latest  = max(int(s.dropna().sort_index().index[-1]) for s in dfs.values() if len(s.dropna()) > 0)
 
     # ── Header — mismo patrón que Perfil y Rankings ────────────────────────
-    st.markdown(f"""
-    <div style="position:relative;overflow:hidden;padding:2.5rem 0 1.5rem;
-                border-bottom:2px solid {BLACK};margin-bottom:2rem;">
-
-        <img src="data:image/png;base64,{LOGO_ICON}"
-             style="position:absolute;top:1.5rem;right:0;width:72px;
-                    opacity:0.9;border-radius:10px;">
-
-        <div style="position:absolute;bottom:-0.5rem;left:-0.3rem;
-                    font-size:9rem;font-weight:900;
-                    color:rgba(249,43,43,0.05);
-                    text-transform:uppercase;letter-spacing:-4px;line-height:1;
-                    font-family:'IBM Plex Mono',monospace;white-space:nowrap;
-                    pointer-events:none;">
-            {indicador.upper().split("(")[0].strip()}
+    hcol_text, hcol_logo = st.columns([9, 1])
+    with hcol_text:
+        st.markdown(f"""
+        <div style="position:relative;overflow:hidden;padding:2.5rem 0 1.5rem;
+                    border-bottom:2px solid {BLACK};margin-bottom:2rem;">
+            <div style="position:absolute;bottom:-0.5rem;left:-0.3rem;
+                        font-size:9rem;font-weight:900;
+                        color:rgba(249,43,43,0.05);
+                        text-transform:uppercase;letter-spacing:-4px;line-height:1;
+                        font-family:'IBM Plex Mono',monospace;white-space:nowrap;
+                        pointer-events:none;">
+                {indicador.upper().split("(")[0].strip()}
+            </div>
+            <div style="font-size:0.55rem;font-weight:900;letter-spacing:4px;
+                        text-transform:uppercase;color:{RED};margin-bottom:0.4rem;">
+                {flag_str} · {label_pais}
+            </div>
+            <div style="font-size:3rem;font-weight:900;color:{BLACK};
+                        text-transform:uppercase;letter-spacing:-1px;line-height:1;">
+                {indicador}
+            </div>
+            <div style="font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;
+                        color:{GRAY};margin-top:0.4rem;">
+                {IND_SOURCE[indicador]} · Serie histórica 2000–{yr_latest}
+            </div>
         </div>
-
-        <div style="font-size:0.55rem;font-weight:900;letter-spacing:4px;
-                    text-transform:uppercase;color:{RED};margin-bottom:0.4rem;">
-            {flag_str} · {label_pais}
-        </div>
-        <div style="font-size:3rem;font-weight:900;color:{BLACK};
-                    text-transform:uppercase;letter-spacing:-1px;line-height:1;">
-            {indicador}
-        </div>
-        <div style="font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;
-                    color:{GRAY};margin-top:0.4rem;">
-            {IND_SOURCE[indicador]} · Serie histórica 2000–{yr_latest}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    with hcol_logo:
+        st.image(str(_assets / "BAEZTRIVE Logo.png"), width=72)
 
     # ── Stat strip — 4 cards por país ─────────────────────────────────────
     for i, (pais, serie) in enumerate(dfs.items()):
